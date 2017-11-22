@@ -1,0 +1,318 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title></title>
+    <script src="JS/knockout-3.4.2.js"></script>
+    <style>
+        .profitWarning {
+        color:red;  
+        }
+    </style>
+</head>
+<body>
+    <button data-bind="enable: buttonEn">Add</button>
+    <input data-bind="value:fullName" />
+    <input data-bind="value:firstName" />
+    <input data-bind="value:lastName" />
+    <table>
+        <thead>
+            <tr>
+                <th>Passenger name</th>
+                <th>Meal</th>
+                <th>Surcharge</th>
+                <th></th>
+            </tr>
+        </thead>
+        <!-- Todo: Generate table body -->
+        <tbody data-bind="foreach: seats">
+            <tr>
+                <td data-bind="text: name"></td>
+                <td data-bind="text: meal().mealName"></td>
+                <td data-bind="text: meal().price"></td>
+            </tr>
+        </tbody>
+    </table>
+    <div class="heading">
+        <input type="checkbox" data-bind="checked: selectedAllProduce" title="Select all/none" /> Produce
+    </div>
+    <!-- ko foreach: produce --> 
+    <!--<div data-bind="foreach: produce">-->
+        <label>
+            <input type="checkbox" data-bind="checkedValue: $data, checked: $parent.selectedProduce" />
+            <span data-bind="text: $data"></span>
+        </label>
+    <!--</div>-->
+    <!-- /ko -->  
+
+    <div data-bind="visible: shouldShowMessage()">
+        You will see this message only when "shouldShowMessage" holds a true value.
+    </div>
+
+    <div data-bind="css: { profitWarning: currentProfit() < 0 }">
+        Profit Information
+    </div>
+
+
+
+
+
+
+    <ul data-bind="foreach: { data: categories, as: 'category' }">
+        <li>
+            <ul data-bind="foreach: { data: items, as: 'item' }">
+                <li>
+                    <span data-bind="text: $parent.name"></span>:
+                    <span data-bind="text: $data"></span>
+                </li>
+            </ul>
+        </li>
+    </ul>
+
+
+
+
+
+
+
+
+    <label><input type="checkbox" data-bind="checked: displayMessage" /> Display message</label>
+
+    <div data-bind="if: displayMessage">Here is a message. Astonishing.</div>
+
+    <h2>Participants</h2>
+    Here are the participants:
+    <div data-bind="template: { name: 'person-template', foreach: people }"></div>
+
+
+    <!--模板-->
+    <script type="text/html" id="person-template">
+        <h3 data-bind="text: name"></h3>
+        <p>Credits: <span data-bind="text: credits"></span></p>
+    </script>
+
+
+
+
+    <p>
+        Choose some countries you would like to visit:
+        <select data-bind="options: availableCountries" size="5" multiple="true"></select>
+    </p>
+
+    <p>
+        Destination country:
+        <select data-bind="options: availableCountries"></select>
+    </p>
+
+
+    <script>
+        // Class to represent a row in the seat reservations grid
+        
+        function SeatReservation(name, initialMeal) {
+            var self = this;
+            self.name = name;
+            self.meal = ko.observable(initialMeal);
+        }
+
+        // Overall viewmodel for this screen, along with initial state
+        function ReservationsViewModel() {
+             var self = this;
+
+             self.val = ko.observable(5);
+            // Non-editable catalog data - would come from the server
+             self.availableMeals = [
+                { mealName: "Standard (sandwich)", price: 0 },
+                { mealName: "Premium (lobster)", price: 34.95 },
+                { mealName: "Ultimate (whole zebra)", price: 290 }
+            ];
+
+            // Editable data
+             self.seats = ko.observableArray([
+                new SeatReservation("Steve", self.availableMeals[0]),
+                new SeatReservation("Bert", self.availableMeals[1])
+             ]);
+             self.firstName = ko.observable('Bob');
+             self.lastName = ko.observable('Smith');
+
+            //此方法会被触发，当firstName或lastName改变时，称为计算api，此定义的方法也能被追踪
+
+            //pureComputed 返回的值是只读的
+             self.fullName = ko.computed(function () {
+                 return self.firstName() + " " + self.lastName();
+             }, self);
+
+
+
+
+            //，还能像食物链那样关联
+             self.nameChanged = ko.computed(function () {
+
+                 alert(self.fullName());
+
+             });  //.extend({ notify: 'always' });;  无论fullName是否改变，只要被重新赋值都会得到通知
+            //  .extend({ logChange: 'full Name Changed:' });   
+
+
+            //还可以定义ko的拓展函数，这样定义就如同此函数是ko的一个自带函数
+            //因此此函数可以在observable，computed等追踪函数后进行链式拓展，如上
+             ko.extenders.logChange = function (target, option) {
+                 target.subscribe(function (newValue) {
+                     console.log(option + ": " + newValue);
+                 });
+                 return target;
+             };
+
+
+            //读写属性
+             this.fullName = ko.pureComputed({
+                 read: function () {
+                     return this.firstName() + " " + this.lastName();
+                 },
+                 write: function (value) {
+                     var lastSpacePos = value.lastIndexOf(" ");
+                     if (lastSpacePos > 0) { // Ignore values with no space character
+                         this.firstName(value.substring(0, lastSpacePos)); // Update "firstName"
+                         this.lastName(value.substring(lastSpacePos + 1)); // Update "lastName"
+                     }
+                 },
+                 owner: this
+             });
+            
+
+
+            //列表数据
+             this.produce = ['Apple', 'Banana', 'Celery', 'Corn', 'Orange', 'Spinach'];
+
+            //此属性是绑定选择的框
+             this.selectedProduce = ko.observableArray(['Corn', 'Orange']);
+
+              //就是bool值，此属性是操作是否全选
+             this.selectedAllProduce = ko.pureComputed({
+                 read: function () {
+                     // Comparing length is quick and is accurate if only items from the
+                     // main array are added to the selected array.
+                     var bool = this.selectedProduce().length === this.produce.length;
+                     console.log(bool);
+                     return bool;
+                 },
+                 write: function (value) {
+                     this.selectedProduce(value ? this.produce.slice(0) : []);
+                 },
+                 owner: this
+             });
+
+
+
+
+             self.buttonEn = function ()
+             {
+
+                 if (self.val==6) { return true; }
+                 else { return false;}
+
+             }
+             ko.isComputed("属性名")  ///用于判断是否为 计算过的追踪量表
+
+
+
+
+
+
+            //控制DOM元素是否显示 
+             self.shouldShowMessage = ko.observable(true);
+
+
+            //为元素添加css类
+             self.currentProfit = ko.observable(150000);
+
+
+
+
+
+
+
+
+             self.categories = ko.observableArray([
+             { name: 'Fruit', items: ['Apple', 'Orange', 'Banana'] },
+             { name: 'Vegetables', items: ['Celery', 'Corn', 'Spinach'] }
+             ]);
+
+
+             self.displayMessage = ko.observable(false);
+
+
+             this.people = [
+        { name: 'Franklin', credits: 250 },
+        { name: 'Mario', credits: 5800 }
+             ];
+             self.availableCountries = ko.observableArray(['France', 'Germany', 'Spain', 'France', 'Germany', 'Spain']);
+        }
+        //knockout只是少写了数据绑定到页面上的脚本
+  
+        //通过new绑定函数内部this的指向
+        var viewModel = new ReservationsViewModel();
+        ko.applyBindings(viewModel);
+
+
+
+
+        //data-bind="textInput: attemptedValue"
+        //表示inputchange改变事件绑定的方法
+        //data-bind="visible: !lastInputWasValid()"
+        //表示该html元素是否显示，根据lastInputWasValid()的返回值决定
+
+
+        //<!--ko--> and <!--/ko--> 
+        //当绑定文本不想使用标签包裹时，可以使用如上，注释性语法，ko会识别并绑定 
+
+
+
+        //$index 表示当前item在数组中的索引
+        //$parent 表示当前节点的父元素
+        //$data 表示当前item
+
+        //data-bind="foreach: { data: people, as: 'person' }"   使用as关键字，person表示当前item ，记得带单引号 
+
+        //"click:" 当元素被包含在foreach里时，就会
+
+        //afterAdd: yellowFadeIn ,afterAdd 关键字使得当有新的元素被添加进数组时会触发后面的回调
+        //afterRender 关键字，每当元素被渲染到DOM都会被触发回调函数
+
+        //<div data-bind="if: capital">
+          //  Capital: <b data-bind="text: capital.cityName"> </b>
+        //</div>
+        //表示if: capital为true时才会显示div里面的内容
+
+        //with 创建了一个新的上下文环境，其后代元素都在此环境内
+
+
+        //enable: hasCellphone 当为true时可以点击
+
+
+        
+        //data-bind="checked: wantsSpam"
+        // 当点击按钮时，会传递true到wantsSpam方法,用在只有一个按钮
+
+        //data-bind="checked: spamFlavors",用在有多个多选按钮
+        //spamFlavors是可追踪数组，当点击按钮时，会将改按钮的value值push进spamFlavors数组
+
+
+        // data-bind="checked: spamFlavor"  
+        //spamFlavors是可追踪变量，当点击按钮时，会将spamFlavors替换成该按钮的value值
+
+        //checkedValue 此关键字的值就是checkedbox的value值
+
+        //<select data-bind="options: availableCountries"></select>
+        //availableCountries 是跟踪数组 ，生成option数组
+        ko.computed(function () {
+            var params = {
+                page: this.pageIndex(),
+
+                //peeky有窃听之意，就是说就算selectedItem发生变化，也不会执行此回调方法，只会得到它的值
+                selected: this.selectedItem.peek()
+            };
+            $.getJSON('/Some/Json/Service', params, this.currentPageData);
+        }, this);
+    </script>
+</body>
+</html>
